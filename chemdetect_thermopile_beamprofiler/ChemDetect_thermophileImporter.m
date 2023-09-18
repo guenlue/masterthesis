@@ -1,0 +1,313 @@
+% this script does several analysis on thermophile array data
+% - subtract BG
+% - check for pulsing with 5Hz framerate
+% - check for beam shape as picture
+% - extract data (FWHM, 10/90 20/80 1/e^2) to fit the beam profile
+
+% thermophile importer
+% arraysize: 7.2 mm x 5.76 mm
+% pixel: 80 x 64 (5120)
+% pixelsize: x: 90 µm y: 125 µm
+
+% arraysize: 7.2 mm x 5.04 mm
+% pixel: 120 x 84 (10080)
+% pixelsize: x: 60 µm y: 60 µm
+
+clear
+clc
+
+%filename = 'C:\meas\su\tools\test4.TXT';
+filename = 'ncc1701.prodi.rub.de\temp\goeksu\su\tools\test4.txt'
+%filename = 'C:\uni\projekteNEU\ChemDetect\BeamProfiler\thermophile_array\test3.TXT';
+%filename = 'C:\uni\projekteNEU\ChemDetect\BeamProfiler\thermophile_array\17_02_10_beam_pulsing_5Hz.TXT';
+xpixel=5.04/84; 
+ypixel=7.2/120; 
+xaxis=xpixel:xpixel:5.04;
+yaxis=ypixel:ypixel:7.2;
+fid=fopen(filename);
+tline = fgetl(fid);
+tlines = cell(0,1);
+while ischar(tline)
+    tlines{end+1,1} = tline;
+    tline = fgetl(fid);
+end
+fclose(fid);
+%% load data
+data = importdata(filename);
+E = dlmread(filename, '');
+disp(E);
+%% extract and reshape data
+for i = 1:size(tlines,1)
+    a = strsplit(tlines{i,1},' ');
+    %D(i,1:10080) = str2double(a(1:84));
+    a = str2double(a); 
+    if length(a) >= 120
+        D(i,1:10080) = a(1:10080);
+    else
+        D(i, 1:10080) = [a, NaN(1, 10080 - length(a))];
+    end
+end
+for i=1:size(D,1)
+    E{i,1} = reshape(D(i,:),84,120);
+end
+%% plot data
+figure
+screen_size = get(0, 'ScreenSize');
+f1 = figure('Name','thermophile array data','NumberTitle','off');
+set(f1, 'Position', [0 0 screen_size(3) screen_size(4) ] );
+F = zeros(size(E));
+for i=1:size(E,1)
+    subplot(2,3,1);imagesc(xaxis,yaxis,E,[-0.002 0.08]);
+    colorbar;xlabel('s / mm');ylabel('s / mm');
+    subplot(2,3,2);histogram(reshape(E,10080,1),100);xlim([-0.05 0.1]);ylim([0 300]);
+    xlabel('U / V');ylabel('Counts');
+    subplot(2,3,3);plot(yaxis,E);
+    disp(num2str(i));
+    if i < 40
+        F = F + E;
+    end
+    subplot(2,3,4);imagesc(xaxis,yaxis,F);% [-0.002 0.08]
+    colorbar;xlabel('s / mm');ylabel('s / mm');
+    subplot(2,3,5);histogram(reshape(F,10080,1),100);%xlim([-0.05 0.1]);
+    subplot(2,3,6);plot(yaxis,F);
+    pause(0.05);
+end
+
+%% build REF
+
+%% take mean value of data stack as reference, subtract from data and plot again
+figure
+screen_size = get(0, 'ScreenSize');
+f1 = figure('Name','thermophile array data','NumberTitle','off');
+set(f1, 'Position', [0 0 screen_size(3) screen_size(4) ] );
+%G=F/size(E,1);
+G=F/40;
+for i=1:size(E,1)
+    subplot(2,3,1);imagesc(xaxis,yaxis,E-G,[-0.002 0.06]);
+    colorbar;xlabel('s / mm');ylabel('s / mm');
+    subplot(2,3,2);hist(reshape(E,10080,1),100);xlim([-0.05 0.1]);ylim([0 300]);
+    xlabel('U / V');ylabel('Counts');
+    subplot(2,3,3);plot(yaxis,E-G);ylim([-0.01 0.06]);
+    disp(num2str(i));
+    subplot(2,3,4);mesh(xaxis,yaxis,E-G);
+    %peakmean(i,1) = mean(mean(E{i,1}(55:70,25:40)));
+    peakmean(i,1) = mean(mean(E(40:55,23:35)));
+    %     frametime=0:0.2:size(peakmean,1)-1*0.2;
+    %     subplot(2,3,5);plot(frametime,peakmean,'-o');xlabel('t / s');ylabel('Peakmean');
+    %     F = F + E{i,1};
+    %     subplot(2,3,4);imagesc(xaxis,yaxis,F);% [-0.002 0.08]
+    %     colorbar;xlabel('s / mm');ylabel('s / mm');
+    %     subplot(2,3,5);hist(reshape(F,5120,1),100);%xlim([-0.05 0.1]);
+    %     subplot(2,3,6);plot(yaxis,F-G);
+    pause(0.1);
+end
+
+frametime=0:0.2:size(peakmean,1)*0.2;
+subplot(2,3,5);plot(frametime(1,2:end)',peakmean,'-o');xlabel('t / s');ylabel('Peakmean');
+
+%% import different positions
+clear;clc;close all
+xpixel=5.04/84; 
+ypixel=7.2/120; 
+xaxis=xpixel:xpixel:5.04;
+yaxis=ypixel:ypixel:7.2;
+yaxis=yaxis(1,1:70);
+datapath = 'C:\meas\su\tools\17_02_10_30positions';
+datafiles=dir(datapath);
+k=1;
+for i=3:size(datafiles,1)
+    disp(datafiles(i).name);
+    C = regexp(datafiles(i).name,'\d\d_\d\d_\d\d_(\d\d\d)mm','tokens');
+    if ~isempty(C)
+        zpos(k,1) = str2double(C{1,1}{1,1});
+        k=k+1;
+        
+        fid=fopen(strcat(datapath,'\',datafiles(i).name));
+        tline = fgetl(fid);
+        tlines = cell(0,1);
+        while ischar(tline)
+            tlines{end+1,1} = tline;
+            tline = fgetl(fid);
+        end
+        fclose(fid);
+        %         % extract and reshape data
+        for j = 1:size(tlines,1)-2
+            a = strsplit(tlines{j,1},' ');
+            D(j,1:5120) = str2double(a(1,2:5121));
+        end
+        for j = 1:size(D,1)
+            E{i-2,1}{j,1} = reshape(D(j,:),80,64);
+            E{i-2,1}{j,1} = E{i-2,1}{j,1}(1:70,:);% <------
+        end
+    end
+end
+%%
+
+fid=fopen(strcat(datapath,'\17_02_10_BG.TXT'));
+tline = fgetl(fid);
+tlines = cell(0,1);
+while ischar(tline)
+    tlines{end+1,1} = tline;
+    tline = fgetl(fid);
+end
+fclose(fid);
+for j = 1:size(tlines,1)-2
+    a = strsplit(tlines{j,1},' ');
+    D(j,1:5120) = str2double(a(1,2:5121));
+end
+for j = 1:size(D,1)
+    OFFSET{j,1} = reshape(D(j,:),80,64);
+    OFFSET{j,1} = OFFSET{j,1}(1:70,:);% <--------------
+    
+end
+% plot OFFSET
+figure
+OFFSET_Av = zeros(size(OFFSET{1,1}));
+for i=1:size(OFFSET,1)
+    imagesc(OFFSET{i,1}-OFFSET{1,1});title(num2str(i));colorbar;
+    pause(0.1);
+    OFFSET_Av = OFFSET_Av + OFFSET{i,1};
+end
+OFFSET_Av = OFFSET_Av / size(OFFSET,1);
+
+
+%%
+
+%load('Thermophile_Array_Data.mat');
+%close all;
+figure;
+screen_size = get(0, 'ScreenSize');
+f1 = figure('Name','thermophile array data','NumberTitle','off');
+set(f1, 'Position', [0 0 screen_size(3) screen_size(4) ] );
+resultpath = 'C:\meas\su\tools\pics2';
+for i=1:size(E,1)% [1 11]%
+    beam{i,1} = zeros(70,64);% <------
+    for j=5:size(E{i,1},1)-25
+        %subplot(1,2,1);mesh(E{i,1}{j,1}-OFFSET_Av,[-0.01 0.1]);
+        subplot(2,2,[1 3]);surf(xaxis,yaxis,E{i,1}{j,1}-OFFSET_Av,'FaceColor','interp','EdgeColor','none');zlim([-0.01 0.5]);
+        xlabel('s / mm');ylabel('s / mm');zlabel('U / V');
+        colormap(jet);
+        subplot(2,2,2);imagesc(E{i,1}{j,1}-OFFSET_Av);title(strcat(num2str(i),'(',num2str(zpos(i)),'mm)---',num2str(j)));
+        subplot(2,2,4);plot(yaxis,E{i,1}{j,1}-OFFSET_Av,'.-');
+        beam{i,1} = beam{i,1} + E{i,1}{j,1}-OFFSET_Av;
+        pause(0.05);
+        if j == 10
+            export_fig(strcat(resultpath,'\ThermophileArray_',num2str(zpos(i),'%03.0f'),'mm'),'-png','-m1');%,'-append');
+            saveas(f1,strcat(resultpath,'\ThermophileArray_',num2str(zpos(i),'%03.0f'),'mm.fig'));
+        end
+    end
+    beam{i,1} = beam{i,1} / size(E{i,1},1);
+    pause(0.01);
+end
+
+%% plot final data
+figure;
+pause(3);
+for i=1:size(beam,1)
+    %surf(xaxis,yaxis,E{i,1}{j,1}-OFFSET_Av,'FaceColor','interp');zlim([-0.01 0.5]);% ,'EdgeColor','none'
+    surf(xaxis,yaxis,beam{i,1},'FaceColor','interp');zlim([-0.01 0.5]);% ,'EdgeColor','none'
+    pause(0.1);
+end
+%%
+close all
+clear FINdata
+zoffset = 3.24+6.5;
+for Intp=2:5
+    figure('Name',strcat(num2str(2^Intp),'-times interpolation'));
+    for m=1:4
+        clearvars -EXCEPT m Intp FINdata zoffset
+        load('Thermophile_Array_Data1.mat');
+        
+        clc
+        
+        beamRaw = beam;
+        xaxisRaw = xaxis;
+        yaxisRaw = yaxis;
+        
+        profilenames = {'FWHM','20/80','10/90','1/e^2'};
+        divider = [2, 5, 10, 7.3891];
+        
+        
+        for j=1:size(beam,1)-2% <-----------
+            disp(num2str(j));
+            beam = beamRaw;
+            xaxis = xaxisRaw;
+            yaxis = yaxisRaw;
+            % interpolate beam
+            for i=1:Intp
+                beam{j,1} = interp2(beam{j,1});
+                xaxis=interp(xaxis,2);
+                yaxis=interp(yaxis,2);
+            end
+            
+            
+            vmax=max(max(beam{j,1}));
+            vmin=min(min(beam{j,1}));
+            vmax2 = (vmax-vmin)/divider(m);
+            test=abs(beam{j,1}-vmax2);
+            % xaxis
+            clear blub
+            for i=1:size(test,1)
+                [val,idx]=sort(test(i,:));
+                if val(1) < 1e-3 && val(2) < 1e-3
+                    %disp(strcat('ok---',num2str(i)));
+                    blub(i,1) = abs(xaxis(1,idx(1)) - xaxis(1,idx(2)));
+                end
+            end
+            if exist('blub')
+                disp(strcat('FWHH (x):',num2str(max(blub)),'mm'));
+                width(j,1) = max(blub);
+            end
+            % yaxis
+            clear blub
+            for i=1:size(test,2)
+                [val,idx]=sort(test(:,i));
+                if val(1) < 1e-3 && val(2) < 1e-3
+                    %disp(strcat('ok---',num2str(i)));
+                    blub(i,1) = abs(xaxis(1,idx(1)) - xaxis(1,idx(2)));
+                end
+            end
+            if exist('blub')
+                disp(strcat('FWHH (y):',num2str(max(blub)),'mm'));
+                width(j,2) = max(blub);
+            end
+        end
+        subplot(2,2,m);plot(abs(flipud(zpos(1:end-2,1))-zpos(end-2,1)),flipud(width),'o-');title(profilenames{m});ylim([0 max(max(width))]);
+        xlabel('distance from ZnSe lens / mm');ylabel('beam parameter / mm');
+        
+        FINdata{m,Intp}(:,1) = abs(flipud(zpos(1:end-2,1))-zpos(end-2,1)) + zoffset;
+        FINdata{m,Intp}(:,2:3) = flipud(width);
+
+    end
+end
+disp('done');
+    
+%%
+clc
+xtofit=FINdata{3,5}(:,1);
+ytofit=FINdata{3,5}(:,2);
+%figure;plot(xtofit,ytofit,'o');
+
+%
+% d0 = 1;
+% x=xtofit;
+% zr=10;
+% dx=60;
+% test = d0*sqrt(1+((x-dx)./zr).^2);
+% figure;plot(xtofit,test,'o-');ylim([0 10]);
+
+[fitresult, gof] = createFitBeam1(xtofit, ytofit);
+fitresult
+% Plot fit with data.
+%figure;%( 'Name', 'BeamProfiler' );
+screen_size = get(0, 'ScreenSize');
+f1 = figure('Name','thermophile array data','NumberTitle','off');
+set(f1, 'Position', [screen_size(3)/10 screen_size(4)/10 screen_size(3)/2 screen_size(4)/2 ] );
+plot(fitresult, xtofit, ytofit);
+%legend( h, 'beam diameter (10/90]', 'fit', 'Location', 'NorthEast' );
+xlabel('beampath / mm');
+ylabel('beamprofile value / mm');
+ylim([0 2.5]);
+title('beam diameter (x-axis, 10/90-method)');
+grid on;
+

@@ -1,0 +1,51 @@
+#folderlistfile: HSP90finalJul2016.txt
+#folderlistfile: HSP90immotechniques.txt
+folderlistfile: test.txt
+#folderlistfile: amdase.txt
+#HSP90newProtocol.txt
+path_syncsource: //ncc1701.bph.rub.de/temp/gast/joern/avasys/running-measurement/80vPure
+path_synctarget: c:\uni\running-measurement
+path_source: c:\uni\running-measurement\meas1
+path_target: HSP90\171026meas1
+subpath_target: []
+specnametype: atr
+spectype: ABS
+# norm, reload
+importmode: norm
+# filik(default) / lasch
+importer: filik
+datasyncmode: 0.0
+copy_to_analysis_path: 0.0
+checkmultichannel: 0.0
+plotNewBG: 0.0
+plottype: norm
+plotspec: 20
+makespectrasubtraction: 0.0
+spectrumname: filenamestring
+# extractdatamode can be: 'all','pretowashfirst', 'pretowash', 'thrufirst', 'thru', 'circfirst', 'circ', 'thrucirc', 'thrucircfirst', 'washfirst', 'wash'
+extractdatamode: all
+recalcfromend: 0.0
+recalcfromendPrz: 1.0
+bslcorr: 1.0
+bslcorrVals: [2800.0, 2780.0, 1860.0, 1850.0]
+interp: {high: 4000.0, incrmt: -0.25, low: 900.0, myinterp1method: spline}
+dichro: {Riso: 1.72}
+domcr: 0.0
+saveworkspace: 1.0
+subtractdmso: 0.0
+dmsocheck: 0.0
+rmbadspec: 0.0
+rmbadspecmethods:
+  #- ['std',100]
+  - ['maxabsdiff',0.1]
+  - ['acr',0.5]
+plotdef_single_ylim: [-0.005, 0.015]
+plotdef_savepics: 0.0
+plotdef_closeold: 1
+# spectren bügeln mit fourier self deconvolution
+fourierselfdeconvolution: {do: 1, gauss: 10, lorentz: 0}
+# here comes a comment
+# the next option is for kinetics analysis to only extract one wash in/wash out of a ligand
+# (another interesting option would be to only select same SMOL types,
+# so when the smol type changes the extraction is stopped
+stopstr: 
